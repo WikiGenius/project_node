@@ -1,31 +1,33 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const validator = require('validator');
-// https://github.com/validatorjs/validator.js
+const bcrypt = require('bcryptjs');
 
-// Define the user schema
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'A user must have a name'],
-    trim: true,
-    maxlength: [40, 'A user name must have less or equal than 40 characters'],
-    minlength: [10, 'A user name must have more or equal than 10 characters']
+    required: [true, 'Please tell us your name!']
   },
   email: {
     type: String,
-    required: [true, 'A user must have an email'],
+    required: [true, 'Please provide your email'],
     unique: true,
     lowercase: true,
     validate: [validator.isEmail, 'Please provide a valid email']
   },
+  photo: String,
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'],
+    default: 'user'
+  },
   password: {
     type: String,
-    required: [true, 'A user must have a password'],
-    minlength: [8, 'A password must have more or equal than 8 characters'],
-    select: false // This will prevent the password from being sent along with the rest of the user data
+    required: [true, 'Please provide a password'],
+    minlength: 8,
+    select: false
   },
-  passwordConfirmed: {
+  passwordConfirm: {
     type: String,
     required: [true, 'Please confirm your password'],
     validate: {
@@ -36,40 +38,16 @@ const userSchema = new mongoose.Schema({
       message: 'Passwords are not the same!'
     }
   },
-  photo: {
-    type: String,
-    trim: true,
-    lowercase: true,
-    default: 'default.jpg', // Set a default value if no photo is provided
-    validate: {
-      validator: function(v) {
-        return /.*\.(jpg|jpeg|png|gif)$/i.test(v);
-      },
-      message: props => `${props.value} is not a valid image file path!`
-    }
-  },
-  role: {
-    type: String,
-    enum: {
-      values: ['user', 'guide', 'lead-guide', 'admin'],
-      message: 'Role is either: user, guide, lead-guide, admin'
-    },
-    default: 'user'
-  },
+  passwordChangedAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
   active: {
     type: Boolean,
     default: true,
-    select: false // This will prevent this field from being outputted in API responses
-  },
-  passwordChangedAt: Date
-});
-userSchema.pre('save', function(next) {
-  if (!this.isModified('password') || this.isNew) return next();
-  this.passwordChangedAt = Date.now() - 1000;
-  next();
+    select: false
+  }
 });
 
-// Document middleware to hash the password before saving the document
 userSchema.pre('save', async function(next) {
   // Only run this function if password was actually modified
   if (!this.isModified('password')) return next();
@@ -77,8 +55,21 @@ userSchema.pre('save', async function(next) {
   // Hash the password with cost of 12
   this.password = await bcrypt.hash(this.password, 12);
 
-  // Delete passwordConfirmed field
-  this.passwordConfirmed = undefined;
+  // Delete passwordConfirm field
+  this.passwordConfirm = undefined;
+  next();
+});
+
+userSchema.pre('save', function(next) {
+  if (!this.isModified('password') || this.isNew) return next();
+
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+
+userSchema.pre(/^find/, function(next) {
+  // this points to the current query
+  this.find({ active: { $ne: false } });
   next();
 });
 
@@ -88,21 +79,36 @@ userSchema.methods.correctPassword = async function(
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
-userSchema.methods.changedPasswordAfter = function(JWTiat) {
-  console.log(this)
+
+userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
       10
     );
-    console.log(changedTimestamp, JWTiat)
-    return changedTimestamp > JWTiat;
+
+    return JWTTimestamp < changedTimestamp;
   }
+
+  // False means NOT changed
   return false;
 };
 
-// Create the user model based on the schema
+userSchema.methods.createPasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  console.log({ resetToken }, this.passwordResetToken);
+
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+};
+
 const User = mongoose.model('User', userSchema);
 
-// Export the model
 module.exports = User;
