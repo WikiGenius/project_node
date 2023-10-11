@@ -1,26 +1,27 @@
 const nodemailer = require('nodemailer');
-require('dotenv').config({ path: '../../config/config.env' });
 
-module.exports.sendEmail = async options => {
-  // Create a transporter using SMTP (Simple Mail Transfer Protocol)
-
+const sendEmail = async options => {
+  // 1) Create a transporter
   const transporter = nodemailer.createTransport({
-    host: process.env.FROM_EMAIL_HOST,
-    port: process.env.FROM_EMAIL_PORT,
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
     auth: {
-      user: process.env.FROM_EMAIL_USERNAME,
-      pass: process.env.FROM_EMAIL_PASS
+      user: process.env.EMAIL_USERNAME,
+      pass: process.env.EMAIL_PASSWORD
     }
   });
-  // Setup email data
+
+  // 2) Define the email options
   const mailOptions = {
-    from: process.env.FROM_EMAIL_HOST,
+    from: 'Jonas Schmedtmann <hello@jonas.io>',
     to: options.email,
     subject: options.subject,
-    text: options.message,
-    html: options.html
+    text: options.message
+    // html:
   };
-  // Send mail with defined transport object
-  let info = await transporter.sendMail(mailOptions);
-  console.log('Message sent: %s', info.messageId);
+
+  // 3) Actually send the email
+  await transporter.sendMail(mailOptions);
 };
+
+module.exports = sendEmail;
