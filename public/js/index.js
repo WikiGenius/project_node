@@ -13,8 +13,19 @@ const userPasswordForm = document.querySelector('.form-user-password');
 
 // DELEGATION
 if (mapBox) {
-  const locations = JSON.parse(mapBox.dataset.locations);
-  displayMap(locations);
+  try {
+    const locations = JSON.parse(mapBox.dataset.locations);
+    const mapboxToken = mapBox.dataset.mapboxToken;
+    const mapboxStyle = mapBox.dataset.mapboxStyle;
+
+    if (!locations || !mapboxToken || !mapboxStyle) {
+      throw new Error('Missing required map data');
+    }
+
+    displayMap(locations, mapboxToken, mapboxStyle);
+  } catch (error) {
+    console.error('Failed to display map:', error);
+  }
 }
 
 if (loginForm)
