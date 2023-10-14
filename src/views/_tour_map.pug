@@ -1,8 +1,0 @@
-section.section-map
-  div#map
-script(src="/js/map.js")
-script(nonce=nonce).
-  var tourData = !{JSON.stringify(tour)};
-  var MAPBOX_TOKEN = '#{MAPBOX_TOKEN}';
-  var MAPBOX_STYLE = '#{MAPBOX_STYLE}';
-  initializeMap(tourData, MAPBOX_TOKEN, MAPBOX_STYLE);

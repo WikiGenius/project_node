@@ -1,27 +1,38 @@
-const login = document.querySelector('#login');
-login.addEventListener('submit', async el => {
-  el.preventDefault();
-  const email = login.email.value;
-  const password = login.password.value;
-  const url = 'http://localhost:3000/api/v1/users/login';
+/* eslint-disable */
+import axios from 'axios';
+import { showAlert } from './alerts';
 
+export const login = async (email, password) => {
   try {
-    const res = await axios.post(url, {
-      email,
-      password
+    const res = await axios({
+      method: 'POST',
+      url: 'http://127.0.0.1:3000/api/v1/users/login',
+      data: {
+        email,
+        password
+      }
     });
-    console.log(res);
 
     if (res.data.status === 'success') {
-      // Redirect to a new page
-      window.location.assign('/');
-    } else {
-      // Show error message
-      alert('Login failed');
+      showAlert('success', 'Logged in successfully!');
+      window.setTimeout(() => {
+        location.assign('/');
+      }, 1500);
     }
-  } catch (error) {
-    // Handle success as above
-    console.error('Login error:', error.response.data);
-    alert('Login failed');
+  } catch (err) {
+    showAlert('error', err.response.data.message);
   }
-});
+};
+
+export const logout = async () => {
+  try {
+    const res = await axios({
+      method: 'GET',
+      url: 'http://127.0.0.1:3000/api/v1/users/logout'
+    });
+    if ((res.data.status = 'success')) location.reload(true);
+  } catch (err) {
+    console.log(err.response);
+    showAlert('error', 'Error logging out! Try again.');
+  }
+};
